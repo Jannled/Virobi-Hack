@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"opencv.hpp": "c",
+			"highgui.hpp": "c",
+			"opencv_modules.hpp": "c",
+			"core.hpp": "c",
+			"calib3d.hpp": "c"
+		}
+	}
+}
