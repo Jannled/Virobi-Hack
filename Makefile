@@ -2,7 +2,7 @@
 
 CC = gcc
 
-TARGET_EXEC ?= Virobi Hack
+TARGET_EXEC ?= Virobi-Hack
 BUILD_DIR ?= bin
 SRC_DIRS ?= src
 
