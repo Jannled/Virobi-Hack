@@ -14,7 +14,8 @@
 			"joystick.h": "c",
 			"vl53l1_platform.h": "c",
 			"vl53l1_types.h": "c",
-			"i2c-dev.h": "c"
+			"i2c-dev.h": "c",
+			"time.h": "c"
 		}
 	}
 }

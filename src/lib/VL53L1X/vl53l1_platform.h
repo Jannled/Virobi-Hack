@@ -25,7 +25,7 @@ typedef struct
 	pthread_mutex_t i2c_mutex;
 } VL53L1_Dev_t;
 
-extern VL53L1_Dev_t *VL53L1_DEV;
+extern VL53L1_Dev_t VL53L1_DEV;
 
 /** @brief VL53L1_WriteMulti() definition.\n
  * To be implemented by the developer

@@ -1,10 +1,35 @@
 #include <stdio.h>
 
+#include "lib/VL53L1X/VL53L1X_api.h"
 #include "lib/joystick.h"
+
+#define RANGING_SENSOR_ADDR 0x29
+
+#define IDENTIFICATION__MODEL_ID 0x010F
 
 int main(int argc, char** argv) 
 {
-    
+    int reval = VL53L1_WrByte(RANGING_SENSOR_ADDR, SOFT_RESET, 0x00);
+    printf("Reval: %d\n", reval);
+    VL53L1_WaitMs(RANGING_SENSOR_ADDR, 100);
+    reval = VL53L1_WrByte(RANGING_SENSOR_ADDR, SOFT_RESET, 0x01);
+    printf("Reval: %d\n", reval);
+
+    VL53L1_WaitMs(RANGING_SENSOR_ADDR, 10000);
+
+    uint16_t stat;
+    VL53L1_RdWord(RANGING_SENSOR_ADDR, IDENTIFICATION__MODEL_ID, &stat);
+    if (stat != 0xEACC)
+        printf("Model ID: %4X\n", stat);
+
+    uint8_t status = 0;
+    VL53L1X_BootState(RANGING_SENSOR_ADDR, &status);
+    if(status == 1)
+        printf("Connected to laser ranger!");
+    else
+        fprintf(stderr, "Ranging sensor is not connected\n");
+
+    //printf("Sensor Init (%d)\n", VL53L1X_SensorInit(RANGING_SENSOR_ADDR));
 }
 
 #if 0

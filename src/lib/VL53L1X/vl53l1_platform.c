@@ -53,46 +53,62 @@
 
 #include <fcntl.h>				//Needed for I2C port
 #include <sys/ioctl.h>			//Needed for I2C port
+
+// sudo apt install libi2c-dev i2c-tools
+
 #include <i2c/smbus.h>
 #include <linux/i2c-dev.h>
-#include <time.h>
 
-VL53L1_Dev_t *VL53L1_DEV = {0};
+VL53L1_Dev_t VL53L1_DEV = {
+	address: 0x00,
+	i2cFileHandle: -1,
+	i2c_mutex: PTHREAD_MUTEX_INITIALIZER
+};
 
 int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count) 
 {
-	pthread_mutex_lock(&VL53L1_DEV->i2c_mutex);
-	__s32 count = -1;
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	__s32 writtenBytes = -1;
 
 	openI2C(dev);
-	count = i2c_smbus_write_block_data(VL53L1_DEV->i2cFileHandle, index, count, pdata);
-	pthread_mutex_unlock(&VL53L1_DEV->i2c_mutex);
+	writtenBytes = i2c_smbus_write_block_data(VL53L1_DEV.i2cFileHandle, index, count, pdata);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
 
-	return count;
+	return writtenBytes;
 }
 
 int8_t VL53L1_ReadMulti(uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count)
 {
-	pthread_mutex_lock(&VL53L1_DEV->i2c_mutex);
-	__s32 count = -1;
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	__s32 actualCount = -1;
+
+	// SMBus only allows a maximum of 32 Bytes, since there is no way of specifying the maximum amount of returned values
+	// we need to take the maximum size to keep memory in bounds.
+	unsigned char readBytes[32] = {0};
 
 	openI2C(dev);
-	count = i2c_smbus_read_block_data(VL53L1_DEV->i2cFileHandle, index, pdata);
+	actualCount = i2c_smbus_read_block_data(VL53L1_DEV.i2cFileHandle, index, readBytes);
 
-	pthread_mutex_unlock(&VL53L1_DEV->i2c_mutex);
-	return count;
+	if(actualCount != count)
+		fprintf(stderr, "Warning: Requested %d bytes, but got %d!\n", count, actualCount);
+
+	for(int i=0; i < ((count < actualCount) ? count : actualCount); i++)
+		pdata[i] = readBytes[i];
+
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+	return actualCount;
 }
 
 int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data) 
 {	
-	pthread_mutex_lock(&VL53L1_DEV->i2c_mutex);
-	__s32 count = -1;
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	__s32 writtenBytes = -1;
 
 	openI2C(dev);
-	count = i2c_smbus_write_byte_data(VL53L1_DEV->i2cFileHandle, index, data);
+	writtenBytes = i2c_smbus_write_byte_data(VL53L1_DEV.i2cFileHandle, index, data);
 
-	pthread_mutex_unlock(&VL53L1_DEV->i2c_mutex);
-	return count;
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+	return writtenBytes;
 }
 
 int8_t VL53L1_WrWord(uint16_t dev, uint16_t index, uint16_t data) 
@@ -115,13 +131,7 @@ int8_t VL53L1_WrDWord(uint16_t dev, uint16_t index, uint32_t data)
 
 int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data) 
 {
-	pthread_mutex_lock(&VL53L1_DEV->i2c_mutex);
-
-	openI2C(dev);
-	data = i2c_smbus_read_byte_data(VL53L1_DEV->i2cFileHandle, index);
-
-	pthread_mutex_unlock(&VL53L1_DEV->i2c_mutex);
-	return data;
+	int ret = VL53L1_ReadMulti(dev, index, data, 1);
 }
 
 int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data) 
@@ -156,30 +166,30 @@ int8_t VL53L1_WaitMs(uint16_t dev, int32_t wait_ms)
 
 int8_t openI2C(uint16_t address)
 {
-	if(VL53L1_DEV->i2cFileHandle < 0)
+	if(VL53L1_DEV.i2cFileHandle < 0)
 	{
-		if((VL53L1_DEV->i2cFileHandle = open(I2C_SYSPATH, O_RDWR)) < 0)
+		if((VL53L1_DEV.i2cFileHandle = open(I2C_SYSPATH, O_RDWR)) < 0)
 		{
 			perror("Failed to open I2C device file!\n");
 			return VL53L1_ERROR_CONTROL_INTERFACE;
 		}
 	}
 
-	if(VL53L1_DEV->address != address)
+	if(VL53L1_DEV.address != address)
 	{
-		if(ioctl(VL53L1_DEV->i2cFileHandle, I2C_SLAVE, address) < 0)
+		if(ioctl(VL53L1_DEV.i2cFileHandle, I2C_SLAVE, address) < 0)
 		{
 			perror("Failed to acquire bus access and/or talk to slave!\n");
 			return VL53L1_ERROR_CONTROL_INTERFACE;
 		}
 
-		VL53L1_DEV->address = address;
+		VL53L1_DEV.address = address;
 	}
 }
 
 int8_t closeI2C()
 {
-	pthread_mutex_lock(&VL53L1_DEV->i2c_mutex);
-	close(VL53L1_DEV->i2cFileHandle);
-	pthread_mutex_unlock(&VL53L1_DEV->i2c_mutex);
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	close(VL53L1_DEV.i2cFileHandle);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
 }
