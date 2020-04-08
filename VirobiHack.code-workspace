@@ -10,7 +10,11 @@
 			"highgui.hpp": "c",
 			"opencv_modules.hpp": "c",
 			"core.hpp": "c",
-			"calib3d.hpp": "c"
+			"calib3d.hpp": "c",
+			"joystick.h": "c",
+			"vl53l1_platform.h": "c",
+			"vl53l1_types.h": "c",
+			"i2c-dev.h": "c"
 		}
 	}
 }

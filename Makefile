@@ -12,9 +12,9 @@ rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(su
 SRCS := $(call rwildcard,$(SRC_DIRS),*.cpp *.c)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
-CFLAGS   = -I./src -I./lib -O0 -g3
+CFLAGS   = -I./src -I./ -O0 -g3
 CXXFLAGS = -std=c++14
-LDFLAGS = -Wl,-rpath=.
+LDFLAGS = -li2c -Wl,-rpath=.
 
 #if shared library target
 #CFLAGS += -shared -undefined dynamic_lookup
