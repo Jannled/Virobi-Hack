@@ -67,96 +67,158 @@ VL53L1_Dev_t VL53L1_DEV = {
 
 int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count) 
 {
-	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
-	__s32 writtenBytes = -1;
+	char buf[] = {index>>8&0xFF, index>>0&0xFF};
+	char buf[count +1];
+	buf[0] = index;
+	for(int i=0; i<count; i++)
+		buf[i+1] = pdata[i];
 
 	openI2C(dev);
-	writtenBytes = i2c_smbus_write_block_data(VL53L1_DEV.i2cFileHandle, index, count, pdata);
+	
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	uint32_t retval = write(VL53L1_DEV.i2cFileHandle, buf, count+1);
 	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
 
-	return writtenBytes;
+	if(retval != count+1)
+	{
+		fprintf(stderr, "Written %ud bytes insted of the requested %ud!", retval-1, count);
+		return VL53L1_ERROR_CONTROL_INTERFACE;
+	}
+	else
+		return count;
 }
 
 int8_t VL53L1_ReadMulti(uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count)
 {
-	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
-	__s32 actualCount = -1;
-
-	// SMBus only allows a maximum of 32 Bytes, since there is no way of specifying the maximum amount of returned values
-	// we need to take the maximum size to keep memory in bounds.
-	unsigned char readBytes[32] = {0};
-
 	openI2C(dev);
-	actualCount = i2c_smbus_read_block_data(VL53L1_DEV.i2cFileHandle, index, readBytes);
 
-	if(actualCount != count)
-		fprintf(stderr, "Warning: Requested %d bytes, but got %d!\n", count, actualCount);
-
-	for(int i=0; i < ((count < actualCount) ? count : actualCount); i++)
-		pdata[i] = readBytes[i];
-
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int writeval = write(VL53L1_DEV.i2cFileHandle, &index, 1);
+	int readVal = read(VL53L1_DEV.i2cFileHandle, pdata, count);
 	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
-	return actualCount;
+
+	if(writeval == 1 && readVal == count)
+		return count;
+	else
+		return VL53L1_ERROR_CONTROL_INTERFACE;	
 }
 
 int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data) 
 {	
-	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
-	__s32 writtenBytes = -1;
+	char buf[] = {index, data};
 
 	openI2C(dev);
-	writtenBytes = i2c_smbus_write_byte_data(VL53L1_DEV.i2cFileHandle, index, data);
 
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int retval = write(VL53L1_DEV.i2cFileHandle, buf, 2);
 	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
-	return writtenBytes;
+
+	if(retval != 2)
+	{
+		fprintf(stderr, "Actually written %d bytes instead of a single one!", retval);
+		return VL53L1_ERROR_CONTROL_INTERFACE;
+	}
+	else
+		return 1;
 }
 
 int8_t VL53L1_WrWord(uint16_t dev, uint16_t index, uint16_t data) 
 {
-	uint8_t buf[4];
-	buf[1] = data>>0&0xFF;
-	buf[0] = data>>8&0xFF;
-	return VL53L1_WriteMulti(dev, index, buf, 2);
+	char buf[] = {index, data>>8&0xFF, data>>0&0xFF};
+
+	openI2C(dev);
+
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int retval = write(VL53L1_DEV.i2cFileHandle, buf, 3);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+
+	if(retval != 3)
+	{
+		fprintf(stderr, "Actually written %d bytes instead of a word!", retval);
+		return VL53L1_ERROR_CONTROL_INTERFACE;
+	}
+	else
+		return 2;
 }
 
 int8_t VL53L1_WrDWord(uint16_t dev, uint16_t index, uint32_t data) 
 {
-	uint8_t buf[4];
-	buf[3] = data>>0&0xFF;
-	buf[2] = data>>8&0xFF;
-	buf[1] = data>>16&0xFF;
-	buf[0] = data>>24&0xFF;
-	return VL53L1_WriteMulti(dev, index, buf, 4);
+	char buf[] = {index, data>>24&0xFF, data>>16&0xFF, data>>8&0xFF, data>>0&0xFF};
+
+	openI2C(dev);
+
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int retval = write(VL53L1_DEV.i2cFileHandle, buf, 5);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+
+	if(retval != 5)
+	{
+		fprintf(stderr, "Actually written %d bytes instead of a dword!", retval);
+		return VL53L1_ERROR_CONTROL_INTERFACE;
+	}
+	else
+		return 4;
 }
 
 int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data) 
 {
-	int ret = VL53L1_ReadMulti(dev, index, data, 1);
+	openI2C(dev);
+
+	unsigned char regAddr = (unsigned char) index;
+
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int writeval = write(VL53L1_DEV.i2cFileHandle, &regAddr, 1);
+	int readVal = read(VL53L1_DEV.i2cFileHandle, data, 1);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+
+	if(writeval == 1 && readVal == 1)
+		return 1;
+	else
+		return VL53L1_ERROR_CONTROL_INTERFACE;	
 }
 
 int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data) 
 {
+	openI2C(dev);
 	uint8_t buf[2];
-	int ret = VL53L1_ReadMulti(dev, index, buf, 2);
+
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int writeval = write(VL53L1_DEV.i2cFileHandle, &index, 1);
+	int readVal = read(VL53L1_DEV.i2cFileHandle, buf, 2);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+
 	uint16_t tmp = 0;
 	tmp |= buf[1]<<0;
 	tmp |= buf[0]<<8;
 	*data = tmp;
 
-	return ret;
+	if(writeval == 1 && readVal == 1)
+		return 1;
+	else
+		return VL53L1_ERROR_CONTROL_INTERFACE;	
+
 }
 
 int8_t VL53L1_RdDWord(uint16_t dev, uint16_t index, uint32_t *data) 
 {
+	openI2C(dev);
 	uint8_t buf[4];
-	int ret = VL53L1_ReadMulti(dev, index, buf, 4);
+
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+	int writeval = write(VL53L1_DEV.i2cFileHandle, &index, 1);
+	int readVal = read(VL53L1_DEV.i2cFileHandle, buf, 2);
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
+
 	uint32_t tmp = 0;
 	tmp |= buf[3]<<0;
 	tmp |= buf[2]<<8;
 	tmp |= buf[1]<<16;
 	tmp |= buf[0]<<24;
-	*data = tmp;
-	return ret;
+
+	if(writeval == 1 && readVal == 1)
+		return 1;
+	else
+		return VL53L1_ERROR_CONTROL_INTERFACE;	
 }
 
 int8_t VL53L1_WaitMs(uint16_t dev, int32_t wait_ms)
@@ -166,6 +228,8 @@ int8_t VL53L1_WaitMs(uint16_t dev, int32_t wait_ms)
 
 int8_t openI2C(uint16_t address)
 {
+	pthread_mutex_lock(&VL53L1_DEV.i2c_mutex);
+
 	if(VL53L1_DEV.i2cFileHandle < 0)
 	{
 		if((VL53L1_DEV.i2cFileHandle = open(I2C_SYSPATH, O_RDWR)) < 0)
@@ -185,6 +249,8 @@ int8_t openI2C(uint16_t address)
 
 		VL53L1_DEV.address = address;
 	}
+
+	pthread_mutex_unlock(&VL53L1_DEV.i2c_mutex);
 }
 
 int8_t closeI2C()

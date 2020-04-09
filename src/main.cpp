@@ -23,11 +23,11 @@ int main(int argc, char** argv)
         printf("Model ID: %4X\n", stat);
 
     uint8_t status = 0;
-    VL53L1X_BootState(RANGING_SENSOR_ADDR, &status);
+    int retVal = VL53L1X_BootState(RANGING_SENSOR_ADDR, &status);
     if(status == 1)
         printf("Connected to laser ranger!");
     else
-        fprintf(stderr, "Ranging sensor is not connected\n");
+        fprintf(stderr, "Ranging sensor is not connected %d\n", retVal);
 
     //printf("Sensor Init (%d)\n", VL53L1X_SensorInit(RANGING_SENSOR_ADDR));
 }
