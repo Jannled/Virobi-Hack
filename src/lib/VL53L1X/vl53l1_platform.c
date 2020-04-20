@@ -43,6 +43,8 @@
  * @author Jannled
  */
 
+// sudo apt install libi2c-dev i2c-tools
+
 #include "vl53l1_platform.h"
 #include "vl53l1_error_codes.h"
 
@@ -55,7 +57,6 @@
 #include <sys/ioctl.h>			//Needed for I2C port
 
 // sudo apt install libi2c-dev i2c-tools
-
 #include <i2c/smbus.h>
 #include <linux/i2c-dev.h>
 

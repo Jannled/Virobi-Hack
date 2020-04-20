@@ -123,6 +123,8 @@ extern "C"
 #define VL53L1_IDENTIFICATION__MODEL_ID                     0x010F
 #define VL53L1_ROI_CONFIG__MODE_ROI_CENTRE_SPAD				0x013E
 
+#define PAD_I2C_HV__EXTSUP_CONFIG							0x002E
+
 /****************************************
  * PRIVATE define do not edit
  ****************************************/
